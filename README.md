@@ -7,4 +7,4 @@ Create an `openai.env` file in the root of the project with `OPENAI_API_KEY="put
 
 ## running
 
-The project can be run using Docker. Run `docker compose up` to start it up.
+The project can be run using Docker. Run `docker compose up` to start it up. In your web browser, navigate to `localhost:8000`.
