@@ -34,10 +34,13 @@ async def transcribe():
                 model="whisper-1", file=audio_file
             )
             text += transcription.text
-        await producer.send_and_wait("transcription.output", str.encode(text))
+        await producer.send_and_wait(
+            "transcription.output", key=message.key, value=str.encode(text)
+        )
 
     await producer.stop()
     await consumer.stop()
+
 
 if __name__ == "__main__":
     asyncio.run(transcribe())

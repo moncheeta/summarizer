@@ -29,7 +29,9 @@ async def summarizer():
             model="gpt-4-turbo",
         )
         summary = summarization.choices[0].message.content
-        await producer.send_and_wait("summarization.output", str.encode(summary))
+        await producer.send_and_wait(
+            "summarization.output", key=message.key, value=str.encode(summary)
+        )
 
     await producer.stop()
     await consumer.stop()

@@ -2,6 +2,7 @@ from fastapi import FastAPI, UploadFile
 from fastapi.responses import HTMLResponse
 import os
 from aiokafka import AIOKafkaProducer, AIOKafkaConsumer
+from uuid import uuid4 as uuid
 import pickle
 
 app = FastAPI()
@@ -24,38 +25,51 @@ async def index():
 
 @app.post("/")
 async def summarize(file: UploadFile):
+    job_id = str.encode(str(uuid()))
+
     producer = AIOKafkaProducer(
         max_request_size=26214400, bootstrap_servers=address
     )
     await producer.start()
-
     print("transribing file")
+    consumer = AIOKafkaConsumer(
+        "transcription.output", bootstrap_servers=address
+    )
+    await consumer.start()
     await producer.send_and_wait(
         "transcription.input",
-        pickle.dumps(
+        key=job_id,
+        value=pickle.dumps(
             {
                 "name": file.filename,
                 "data": await file.read(),
             }
         ),
     )
-    consumer = AIOKafkaConsumer(
-        "transcription.output", bootstrap_servers=address
-    )
-    await consumer.start()
-    message = await consumer.getone()
+    text = ""
+    while True:
+        message = await consumer.getone()
+        if message.key == job_id:
+            text = message.value.decode()
+            break
     await consumer.stop()
-    text = message.value.decode()
 
     print("summarizing text")
-    await producer.send_and_wait("summarization.input", str.encode(text))
     consumer = AIOKafkaConsumer(
         "summarization.output", bootstrap_servers=address
     )
     await consumer.start()
-    message = await consumer.getone()
+    await producer.send_and_wait(
+        "summarization.input", key=job_id, value=str.encode(text)
+    )
+
+    summary = ""
+    while True:
+        message = await consumer.getone()
+        if message.key == job_id:
+            summary = message.value.decode()
+            break
     await consumer.stop()
-    summary = message.value.decode()
 
     await producer.stop()
 
