@@ -8,6 +8,8 @@ address = os.environ.get("KAFKA_ADDRESS", "localhost:9092")
 
 
 async def summarizer():
+    producer = AIOKafkaProducer(bootstrap_servers=address)
+    await producer.start()
     consumer = AIOKafkaConsumer(
         "summarization.input", bootstrap_servers=address
     )
@@ -27,12 +29,9 @@ async def summarizer():
             model="gpt-4-turbo",
         )
         summary = summarization.choices[0].message.content
+        await producer.send_and_wait("summarization.output", str.encode(summary))
 
-        producer = AIOKafkaProducer(bootstrap_servers=address)
-        await producer.start()
-        await producer.send("summarization.output", str.encode(summary))
-        await producer.stop()
-
+    await producer.stop()
     await consumer.stop()
 
 

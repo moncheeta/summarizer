@@ -24,12 +24,13 @@ async def index():
 
 @app.post("/")
 async def summarize(file: UploadFile):
-    print("transribing file")
     producer = AIOKafkaProducer(
         max_request_size=26214400, bootstrap_servers=address
     )
     await producer.start()
-    await producer.send(
+
+    print("transribing file")
+    await producer.send_and_wait(
         "transcription.input",
         pickle.dumps(
             {
@@ -38,7 +39,6 @@ async def summarize(file: UploadFile):
             }
         ),
     )
-    await producer.stop()
     consumer = AIOKafkaConsumer(
         "transcription.output", bootstrap_servers=address
     )
@@ -48,12 +48,7 @@ async def summarize(file: UploadFile):
     text = message.value.decode()
 
     print("summarizing text")
-    producer = AIOKafkaProducer(
-        max_request_size=26214400, bootstrap_servers=address
-    )
-    await producer.start()
-    await producer.send("summarization.input", str.encode(text))
-    await producer.stop()
+    await producer.send_and_wait("summarization.input", str.encode(text))
     consumer = AIOKafkaConsumer(
         "summarization.output", bootstrap_servers=address
     )
@@ -61,6 +56,8 @@ async def summarize(file: UploadFile):
     message = await consumer.getone()
     await consumer.stop()
     summary = message.value.decode()
+
+    await producer.stop()
 
     print("request completed")
     return {

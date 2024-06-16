@@ -10,6 +10,10 @@ address = os.environ.get("KAFKA_ADDRESS", "localhost:9092")
 
 
 async def transcribe():
+    producer = AIOKafkaProducer(
+        max_request_size=26214400, bootstrap_servers=address
+    )
+    await producer.start()
     consumer = AIOKafkaConsumer(
         "transcription.input", bootstrap_servers=address
     )
@@ -30,16 +34,10 @@ async def transcribe():
                 model="whisper-1", file=audio_file
             )
             text += transcription.text
+        await producer.send_and_wait("transcription.output", str.encode(text))
 
-        producer = AIOKafkaProducer(
-            max_request_size=26214400, bootstrap_servers=address
-        )
-        await producer.start()
-        await producer.send("transcription.output", str.encode(text))
-        await producer.stop()
-
+    await producer.stop()
     await consumer.stop()
-
 
 if __name__ == "__main__":
     asyncio.run(transcribe())
