@@ -44,6 +44,7 @@ services:
       - "openai.env"
     depends_on:
       - kafka
+    stop_signal: SIGINT
     restart: always
 
   text_to_summary:
@@ -54,6 +55,7 @@ services:
       - "openai.env"
     depends_on:
       - kafka
+    stop_signal: SIGINT
     restart: always
 
   frontend:
